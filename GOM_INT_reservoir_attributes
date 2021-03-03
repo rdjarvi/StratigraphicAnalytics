@@ -1,0 +1,134 @@
+select
+    BH_NAME,
+    UWI,
+    START_MD,
+    ZONE_LOG,
+    TOPS_FOLDER,
+    MARKER_XYZ_POSITION_ID,
+    CASE
+        WHEN StageScaleEOD_int_val in(SELECT integer_value
+    from GOM_INT.DISCRETE_VALUE_
+    where GOM_INT.DISCRETE_VALUE_.DISCRETE_VALUE_SET_ID=(SELECT ID from GOM_INT.DISCRETE_VALUE_SET where Name = 'Stage_Scale_Combo_EOD')) 
+            THEN (SELECT name
+    from GOM_INT.DISCRETE_VALUE_
+    where GOM_INT.DISCRETE_VALUE_.DISCRETE_VALUE_SET_ID=(SELECT ID from GOM_INT.DISCRETE_VALUE_SET where Name = 'Stage_Scale_Combo_EOD') and GOM_INT.DISCRETE_VALUE_.INTEGER_VALUE=StageScaleEOD_int_val)
+    END as Stage_scale_EOD,
+    CASE
+        WHEN PartialEOD_int_val in(SELECT integer_value
+    from GOM_INT.DISCRETE_VALUE_
+    where GOM_INT.DISCRETE_VALUE_.DISCRETE_VALUE_SET_ID=(SELECT ID from GOM_INT.DISCRETE_VALUE_SET where Name = 'Partial EOD')) 
+            THEN (SELECT name
+    from GOM_INT.DISCRETE_VALUE_
+    where GOM_INT.DISCRETE_VALUE_.DISCRETE_VALUE_SET_ID=(SELECT ID from GOM_INT.DISCRETE_VALUE_SET where Name = 'Partial EOD') and GOM_INT.DISCRETE_VALUE_.INTEGER_VALUE=PartialEOD_int_val)
+    END as Partial_EOD,
+    CASE
+        WHEN TopConfidence_int_val in(SELECT integer_value
+    from GOM_INT.DISCRETE_VALUE_
+    where GOM_INT.DISCRETE_VALUE_.DISCRETE_VALUE_SET_ID=(SELECT ID from GOM_INT.DISCRETE_VALUE_SET where Name = 'Biostrat Seismic Integration')) 
+            THEN (SELECT name
+    from GOM_INT.DISCRETE_VALUE_
+    where GOM_INT.DISCRETE_VALUE_.DISCRETE_VALUE_SET_ID=(SELECT ID from GOM_INT.DISCRETE_VALUE_SET where Name = 'Biostrat Seismic Integration') and GOM_INT.DISCRETE_VALUE_.INTEGER_VALUE=TopConfidence_int_val)
+    END as Top_Confidence,
+    NS_PetCalc_num_val as NS_PetC_Net,
+    NR_PetCalc_num_val as NR_PetC_NetRes,
+    WNRP_PC_NonNet_num_val as WNRP_PetC_NonNet,
+    WNRP_PC_NetWetRes_num_val as WNRP_PetC_NetWetRes,
+    WNRP_PC_NetNonResSand_num_val as WNRP_PetC_NetNonResSand,
+    WNRP_PC_NetPay_num_val as WNRP_PetC_NetPay,
+    (Thkns_GrossThkns_num_val  * 3.28084)as Thkns_Gross_Thkns_Net,
+    (Thkns_NS_PetCalc_num_val * 3.28084) as Thkns_NS_PetC_Net,
+    (Thkns_NR_PetCalc_num_val * 3.28084) as Thkns_NR_PetC_NetRes,
+    (Thkns_WNRP_PC_NonNet_num_val * 3.28084) as Thkns_WNRP_PetC_NonNet,
+    (Thkns_WNRP_PC_NetWetRes_num_va * 3.28084) as Thkns_WNRP_PetC_NetWetRes,
+    (Thkns_WNRP_PC_NetNonResSand_nu * 3.28084) as Thkns_WNRP_PetC_NetNonResSand,
+    (Thkns_WNRP_PC_NetPay_num_val  * 3.28084) as Thkns_WNRP_PetC_NetPay,
+    eGEO_PHIT_num_val as eGEO_PHIT,
+    eGEO_PHIT_NS_num_val as eGEO_PHIT_NS,
+    eGEO_PHIT_NR_num_val as eGEO_PHIT_NR,
+    eGEO_PHIT_PAY_num_val as eGEO_PHIT_PAY,
+    t.x,
+    t.y,
+    shape
+from
+    (
+with base_table as
+(
+    select
+    *
+from
+    (
+            select
+        bh.name BH_NAME,
+        bh.ubhi UWI,
+        bhp.md START_MD,
+        prop.name USER_ATTRIBUTE,
+        gl.name ZONE_LOG,
+        prop_val.integer_value,
+        prop_val.num_value,
+        strat_col.name TOPS_FOLDER,
+        bhp.marker_xyz_position_id
+
+    from
+        GOM_INT.petrel_user_def_property prop,
+        GOM_INT.petrel_user_def_pty_value prop_val,
+        GOM_INT.BOREHOLE_POINT_ bhp,
+        GOM_INT.BOREHOLE_ bh,
+        GOM_INT.GEOLOGIC_LAYER_ gl,
+        GOM_INT.LAYER_COLUMN_ASSEMBLY_ cla,
+        GOM_INT.STRAT_COLUMN_ strat_col,
+        GOM_INT.POSITION_ zone_pos
+    where
+                prop.petrel_object_type = 'DbxMarkerPropertyType'
+        and prop.predefined_identifier = 'ZoneProperty'
+        and prop.id = prop_val.petrel_user_def_property_id
+        and prop_val.ENTITY_ID = bhp.id
+        and bhp.borehole_id = bh.id
+        and gl.id = cla.geologic_layer_id
+        and bhp.WELL_MARKER_SURFACE_ID (+)= gl.top_strat_surface_id
+        and cla.strat_column_id = strat_col.id
+        and bhp.marker_xyz_position_id = zone_pos.id
+        and strat_col.name = 'Unified EOD Stage Tops'
+    order by
+                strat_col.name, bh.name, bhp.md,
+                prop.name, gl.name
+        )
+        PIVOT
+        (
+              max(integer_value) as int_val, max(num_value) as num_val
+for user_attribute in
+(
+                'Stage EOD (Unified EOD Stage Tops)' as StageScaleEOD,
+                'Partial_EOD (Unified EOD Stage Tops)' as PartialEOD,
+                'Top Confidence (Unified EOD Stage Tops)' as TopConfidence,
+                'Thickness of Gross_Thickness(1: Net)' as Thkns_GrossThkns,
+                'Thickness of NS_PetCalc(1: Net)' as Thkns_NS_PetCalc,
+                'Thickness of NR_PetCalc(1: NetRes)' as Thkns_NR_PetCalc,
+                'NS_PetCalc(1: Net)' as NS_PetCalc,
+                'NR_PetCalc(1: NetRes)' as NR_PetCalc,
+                'Thickness of WetNetResPay_PetCalc(0: NonNet)' as Thkns_WNRP_PC_NonNet,
+                'Thickness of WetNetResPay_PetCalc(1: NetWetRes)' as Thkns_WNRP_PC_NetWetRes,
+                'Thickness of WetNetResPay_PetCalc(2: NetNonResSand)' as Thkns_WNRP_PC_NetNonResSand,
+                'Thickness of WetNetResPay_PetCalc(3: NetPay)' as Thkns_WNRP_PC_NetPay,
+                'WetNetResPay_PetCalc(0: NonNet)' as WNRP_PC_NonNet,
+                'WetNetResPay_PetCalc(1: NetWetRes)' as WNRP_PC_NetWetRes,
+                'WetNetResPay_PetCalc(2: NetNonResSand)' as WNRP_PC_NetNonResSand,
+                'WetNetResPay_PetCalc(3: NetPay)' as WNRP_PC_NetPay,
+                'eGEO_PHIT' as eGEO_PHIT,
+        'eGEO_PHIT_NS' as eGEO_PHIT_NS,
+        'eGEO_PHIT_NR' as eGEO_PHIT_NR,
+        'eGEO_PHIT_PAY' as eGEO_PHIT_PAY
+                )
+
+        ) piv_1
+        order by 1, 2
+)
+select
+    *
+from
+    base_table
+    left join
+    GOM_INT.POSITION_ zone_pos_o on base_table.marker_xyz_position_id = zone_pos_o.id
+) main_view,
+        table
+(sdo_util.getvertices
+(main_view.shape)) t
