@@ -1,0 +1,14 @@
+select 
+        bh.name BH_NAME,
+        bh.ubhi UWI,
+        bh.id,
+        t.X,
+        t.Y
+    from
+        SATT.POSITION_ zone_pos,
+        SATT.BOREHOLE_ bh,
+        table(sdo_util.getvertices(zone_pos.shape)) t
+    where
+        zone_pos.id = bh.id
+    order by
+        bh.name
