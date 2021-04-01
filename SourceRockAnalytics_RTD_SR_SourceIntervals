@@ -55,6 +55,8 @@ select
     (NetSrc_gt2pctPCT_num_val*100) as NetSrc_gt2pctPCT,
     (NetSrc_gt4pctPCT_num_val*100) as NetSrc_gt4pctPCT,
     maxDepth_num_val as maxDepth,  
+    avgHI_num_val as avgHI,
+    (avgTMAX_num_val-273.15) as avgTMAX,
     t.x,
     t.y,
     shape
@@ -132,6 +134,8 @@ for user_attribute in
 		'NetSrcCombo2(2: NetSrc>2pct)' as NetSrc_gt2pctPCT,
 		'NetSrcCombo2(3: NetSrc>4pct)' as NetSrc_gt4pctPCT,
 		'MaxDepth' as maxDepth,
+		'Avg_HI' as avgHI,
+		'Avg_TMAX' as avgTMAX,
                 'NetSrcEOD' as Net_Src_EOD,
 		'NetSrcRegionalEOD' as NetSrcRegEOD,
 		'Dominate Lithology' as DominateLith
