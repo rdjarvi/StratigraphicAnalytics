@@ -1,0 +1,152 @@
+select
+    BH_NAME,
+    UWI,
+    START_MD,
+    ZONE_LOG,
+    TOPS_FOLDER,
+    MARKER_XYZ_POSITION_ID,
+    CASE
+        WHEN Net_Src_EOD_int_val in(SELECT integer_value
+    from RTD_SR.DISCRETE_VALUE_
+    where RTD_SR.DISCRETE_VALUE_.DISCRETE_VALUE_SET_ID=(SELECT ID from RTD_SR.DISCRETE_VALUE_SET where Name = 'Source EOD')) 
+            THEN (SELECT name
+    from RTD_SR.DISCRETE_VALUE_
+    where RTD_SR.DISCRETE_VALUE_.DISCRETE_VALUE_SET_ID=(SELECT ID from RTD_SR.DISCRETE_VALUE_SET where Name = 'Source EOD') and     RTD_SR.DISCRETE_VALUE_.INTEGER_VALUE=Net_Src_EOD_int_val)
+    END as SRC_STAGE_EOD,
+    CASE
+        WHEN NetSrcRegEOD_int_val in(SELECT integer_value
+    from RTD_SR.DISCRETE_VALUE_
+    where RTD_SR.DISCRETE_VALUE_.DISCRETE_VALUE_SET_ID=(SELECT ID from RTD_SR.DISCRETE_VALUE_SET where Name = 'GuySur_RegionalEOD_Porter')) 
+            THEN (SELECT name
+    from RTD_SR.DISCRETE_VALUE_
+    where RTD_SR.DISCRETE_VALUE_.DISCRETE_VALUE_SET_ID=(SELECT ID from RTD_SR.DISCRETE_VALUE_SET where Name = 'GuySur_RegionalEOD_Porter') and       	    RTD_SR.DISCRETE_VALUE_.INTEGER_VALUE=NetSrcRegEOD_int_val)
+    END as SRC_REG_EOD,
+    CASE
+        WHEN DominateLith_int_val in(SELECT integer_value
+    from RTD_SR.DISCRETE_VALUE_
+    where RTD_SR.DISCRETE_VALUE_.DISCRETE_VALUE_SET_ID=(SELECT ID from RTD_SR.DISCRETE_VALUE_SET where Name = 'Guyana Basin Lithologies 2009')) 
+            THEN (SELECT name
+    from RTD_SR.DISCRETE_VALUE_
+    where RTD_SR.DISCRETE_VALUE_.DISCRETE_VALUE_SET_ID=(SELECT ID from RTD_SR.DISCRETE_VALUE_SET where Name = 'Guyana Basin Lithologies 2009') and       	    RTD_SR.DISCRETE_VALUE_.INTEGER_VALUE=DominateLith_int_val)
+    END as SRC_DOM_LITH,
+    Thkns_GrossThkns_num_val as Gross_Thickness,
+    Thkns_NetSrc1pct_num_val as Thkns_NetSrc1pct,
+    Thkns_NetSrc2pct_num_val as Thkns_NetSrc2pct,
+    Thkns_NetSrc4pct_num_val as Thkns_NetSrc4pct,
+    (NetSrc1pct_NTG_num_val*100) as NetSrc1pct_NTG,
+    (NetSrc2pct_NTG_num_val*100) as NetSrc2pct_NTG,
+    (NetSrc4pct_NTG_num_val*100) as NetSrc4pct_NTG,
+    (TOC_AVG_num_val*100) as TOC_AVG,
+    (TOC_MAX_num_val*100) as TOC_MAX,
+    (TOC_AVG_NetSrc1pct_num_val*100) as TOC_AVG_NetSrc1pct,
+    (TOC_AVG_NetSrc2pct_num_val*100) as TOC_AVG_NetSrc2pct,
+    (TOC_AVG_NetSrc4pct_num_val*100) as TOC_AVG_NetSrc4pct,
+    (DLOGR_TOC_AVG_num_val*100) as DLOGR_TOC_AVG,
+    (DLOGR_TOC_MAX_num_val*100) as DLOGR_TOC_MAX,
+    (DLOGR_TOC_AVG_NtSrc1_num_val*100) as DLOGR_TOC_AVG_NtSrc1,
+    (DLOGR_TOC_AVG_NtSrc2_num_val*100) as DLOGR_TOC_AVG_NtSrc2,
+    (DLOGR_TOC_AVG_NtSrc4_num_val*100) as DLOGR_TOC_AVG_NtSrc4,
+    ThicknessNetSrc_NonNet_num_val as ThicknessNetSrc_NonNet,
+    ThicknessNetSrc_gt1pct_num_val as ThicknessNetSrc_gt1pct,
+    ThicknessNetSrc_gt2pct_num_val as ThicknessNetSrc_gt2pct,
+    ThicknessNetSrc_gt4pct_num_val as ThicknessNetSrc_gt4pct,
+    (NetSrc_NonNetPCT_num_val*100) as NetSrc_NonNetPCT,
+    (NetSrc_gt1pctPCT_num_val*100) as NetSrc_gt1pctPCT,
+    (NetSrc_gt2pctPCT_num_val*100) as NetSrc_gt2pctPCT,
+    (NetSrc_gt4pctPCT_num_val*100) as NetSrc_gt4pctPCT,
+    maxDepth_num_val as maxDepth,  
+    t.x,
+    t.y,
+    shape
+from
+    (
+with base_table as
+(
+    select
+    *
+from
+    (
+            select
+        bh.name BH_NAME,
+        bh.ubhi UWI,
+        bhp.md START_MD,
+        prop.name USER_ATTRIBUTE,
+        gl.name ZONE_LOG,
+        prop_val.integer_value,
+        prop_val.num_value,
+        strat_col.name TOPS_FOLDER,
+        bhp.marker_xyz_position_id
+
+    from
+        RTD_SR.petrel_user_def_property prop,
+        RTD_SR.petrel_user_def_pty_value prop_val,
+        RTD_SR.BOREHOLE_POINT_ bhp,
+        RTD_SR.BOREHOLE_ bh,
+        RTD_SR.GEOLOGIC_LAYER_ gl,
+        RTD_SR.LAYER_COLUMN_ASSEMBLY_ cla,
+        RTD_SR.STRAT_COLUMN_ strat_col,
+        RTD_SR.POSITION_ zone_pos
+    where
+        prop.petrel_object_type = 'DbxMarkerPropertyType'
+        and prop.predefined_identifier = 'ZoneProperty'
+        and prop.id = prop_val.petrel_user_def_property_id
+        and prop_val.ENTITY_ID = bhp.id
+        and bhp.borehole_id = bh.id
+        and gl.id = cla.geologic_layer_id
+        and bhp.WELL_MARKER_SURFACE_ID (+)= gl.top_strat_surface_id
+        and cla.strat_column_id = strat_col.id
+        and bhp.marker_xyz_position_id = zone_pos.id
+        and strat_col.name = 'Unified_SRC_Interval_Tops'
+    order by
+                strat_col.name, bh.name, bhp.md,
+                prop.name, gl.name
+        )
+        PIVOT
+        (
+              max(integer_value) as int_val, max(num_value) as num_val
+for user_attribute in
+(
+                'Thickness of GrossThickness(1: Net)' as Thkns_GrossThkns,
+                'Thickness of NetSrc1pct(1: NetSrc>1pct)' as Thkns_NetSrc1pct,
+		'Thickness of NetSrc2pct(2: NetSrc>2pct)' as Thkns_NetSrc2pct,
+		'Thickness of NetSrc4pct(3: NetSrc>4pct)' as Thkns_NetSrc4pct,
+		'NetSrc1pct(1: NetSrc>1pct)' as NetSrc1pct_NTG,
+		'NetSrc2pct(2: NetSrc>2pct)' as NetSrc2pct_NTG,
+                'NetSrc4pct(3: NetSrc>4pct)' as NetSrc4pct_NTG,
+		'TOC_meas_AVG' as TOC_AVG,
+		'TOC_meas_MAX' as TOC_MAX,
+		'TOC_meas_AVG_NetSrc1pct' as TOC_AVG_NetSrc1pct,
+		'TOC_meas_AVG_NetSrc2pct' as TOC_AVG_NetSrc2pct,
+		'TOC_meas_AVG_NetSrc4pct' as TOC_AVG_NetSrc4pct,
+		'DlogR_TOC_AVG' as DLOGR_TOC_AVG,
+		'DlogR_TOC_MAX' as DLOGR_TOC_MAX,
+		'DlogR_TOC_AVG_NetSrc1pct' as DLOGR_TOC_AVG_NtSrc1,
+		'DlogR_TOC_AVG_NetSrc2pct' as DLOGR_TOC_AVG_NtSrc2,
+                'DlogR_TOC_AVG_NetSrc4pct' as DLOGR_TOC_AVG_NtSrc4,
+		'Thickness of NetSrcCombo2(0: NonNet)' as ThicknessNetSrc_NonNet,
+		'Thickness of NetSrcCombo2(1: NetSrc>1pct)' as ThicknessNetSrc_gt1pct,
+		'Thickness of NetSrcCombo2(2: NetSrc>2pct)' as ThicknessNetSrc_gt2pct,
+		'Thickness of NetSrcCombo2(3: NetSrc>4pct)' as ThicknessNetSrc_gt4pct,
+		'NetSrcCombo2(0: NonNet)' as NetSrc_NonNetPCT,
+		'NetSrcCombo2(1: NetSrc>1pct)' as NetSrc_gt1pctPCT,
+		'NetSrcCombo2(2: NetSrc>2pct)' as NetSrc_gt2pctPCT,
+		'NetSrcCombo2(3: NetSrc>4pct)' as NetSrc_gt4pctPCT,
+		'MaxDepth' as maxDepth,
+                'NetSrcEOD' as Net_Src_EOD,
+		'NetSrcRegionalEOD' as NetSrcRegEOD,
+		'Dominate Lithology' as DominateLith
+                )
+
+        ) piv_1
+        order by 1, 2
+)
+select
+    *
+from
+    base_table
+    left join
+    RTD_SR.POSITION_ zone_pos_o on base_table.marker_xyz_position_id = zone_pos_o.id
+) main_view,
+        table
+(sdo_util.getvertices
+(main_view.shape)) t
