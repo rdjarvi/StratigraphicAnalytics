@@ -98,7 +98,7 @@ from
         and bhp.WELL_MARKER_SURFACE_ID (+)= gl.top_strat_surface_id
         and cla.strat_column_id = strat_col.id
         and bhp.marker_xyz_position_id = zone_pos.id
-        and strat_col.name = 'Unified_SRC_Interval_Tops'
+        and strat_col.name = 'Unified_SRC_Chronostrat_Tops'
     order by
                 strat_col.name, bh.name, bhp.md,
                 prop.name, gl.name
